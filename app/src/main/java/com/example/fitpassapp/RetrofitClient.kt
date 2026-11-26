@@ -332,7 +332,7 @@ private class AuthInterceptor : Interceptor {
 }
 
 object RetrofitClient {
-    private const val BASE_URL = "http://192.168.100.131:8080/"
+    private const val BASE_URL = "https://fitpass-api-fc99.onrender.com/"
 
     private val okHttpClient: OkHttpClient by lazy {
         OkHttpClient.Builder()
