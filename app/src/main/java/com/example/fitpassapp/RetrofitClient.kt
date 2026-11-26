@@ -1,5 +1,8 @@
 package com.example.fitpassapp
 
+import android.content.Context
+import okhttp3.Interceptor
+import okhttp3.OkHttpClient
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -35,7 +38,8 @@ data class UsuarioResponseDto(
     val id: Long,
     val nombre: String,
     val email: String,
-    val rol: String?
+    val rol: String?,
+    val token: String? = null
 )
 
 data class ApiResponseDto<T>(
@@ -271,12 +275,75 @@ interface FitPassApiService {
     ): Response<ApiResponseDto<UsuarioResponseDto>>
 }
 
+object TokenManager {
+    private const val PREF_NAME = "fitpass_session_prefs"
+    private const val KEY_JWT_TOKEN = "jwt_token"
+
+    @Volatile
+    private var cachedToken: String? = null
+
+    fun init(context: Context) {
+        val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        cachedToken = prefs.getString(KEY_JWT_TOKEN, null)
+    }
+
+    fun guardarToken(context: Context, token: String?) {
+        cachedToken = token
+        val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+        prefs.edit().putString(KEY_JWT_TOKEN, token).apply()
+    }
+
+    fun obtenerToken(context: Context? = null): String? {
+        if (!cachedToken.isNullOrBlank()) return cachedToken
+        if (context != null) {
+            val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            cachedToken = prefs.getString(KEY_JWT_TOKEN, null)
+        }
+        return cachedToken
+    }
+
+    fun limpiarToken(context: Context? = null) {
+        cachedToken = null
+        if (context != null) {
+            val prefs = context.applicationContext.getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
+            prefs.edit().remove(KEY_JWT_TOKEN).apply()
+        }
+    }
+}
+
+private class AuthInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): okhttp3.Response {
+        val originalRequest = chain.request()
+        val path = originalRequest.url.encodedPath
+
+        // No adjuntamos Bearer en rutas públicas de auth
+        if (path.startsWith("/api/auth/")) {
+            return chain.proceed(originalRequest)
+        }
+
+        val token = TokenManager.obtenerToken()
+        val requestBuilder = originalRequest.newBuilder()
+        if (!token.isNullOrBlank()) {
+            requestBuilder.header("Authorization", "Bearer $token")
+        }
+
+        return chain.proceed(requestBuilder.build())
+    }
+}
+
 object RetrofitClient {
-    private const val BASE_URL = "https://fitpass-api-fc99.onrender.com/"
+    private const val BASE_URL = "http://192.168.100.131:8080/"
+
+    private val okHttpClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor())
+            .build()
+    }
 
     val apiService: FitPassApiService by lazy {
         Retrofit.Builder()
             .baseUrl(BASE_URL)
+            .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
             .create(FitPassApiService::class.java)

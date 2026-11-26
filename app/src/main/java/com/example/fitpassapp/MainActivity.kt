@@ -15,11 +15,13 @@ import androidx.compose.ui.unit.sp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        TokenManager.init(this)
         setContent {
             MaterialTheme {
                 var usuarioLogueado by remember { mutableStateOf<UsuarioResponseDto?>(null) }
 
                 val cerrarSesionLimpio: () -> Unit = {
+                    TokenManager.limpiarToken(this)
                     usuarioLogueado = null
                 }
 

@@ -90,6 +90,10 @@ fun LoginScreen(onLoginExitoso: (UsuarioResponseDto) -> Unit) {
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
+    LaunchedEffect(Unit) {
+        TokenManager.init(context)
+    }
+
     var esModoRegistro by remember { mutableStateOf(false) }
     var esModoRecuperacion by remember { mutableStateOf(false) }
     var pasoRecuperacion by remember { mutableStateOf(1) } // 1: Pedir correo, 2: Ingresar código y nueva pass
@@ -124,6 +128,7 @@ fun LoginScreen(onLoginExitoso: (UsuarioResponseDto) -> Unit) {
                         if (res.isSuccessful && res.body()?.exito == true) {
                             val usuario = res.body()?.datos
                             if (usuario != null) {
+                                TokenManager.guardarToken(context, usuario.token)
                                 Toast.makeText(context, "Bienvenido $selectedEmail", Toast.LENGTH_SHORT).show()
                                 onLoginExitoso(usuario)
                             }
@@ -448,6 +453,7 @@ fun LoginScreen(onLoginExitoso: (UsuarioResponseDto) -> Unit) {
                                     if (res.isSuccessful && res.body()?.exito == true) {
                                         val usuario = res.body()?.datos
                                         if (usuario != null) {
+                                            TokenManager.guardarToken(context, usuario.token)
                                             onLoginExitoso(usuario)
                                         }
                                     } else {
